@@ -39,8 +39,8 @@ void KafkaTopicDeltaHandler::handle_delta(const AnonymousResult& res) {
 }
 
 void KafkaTopicDeltaHandler::handle_serialized(const std::string& s) {
-  KafkaResult result = m_kafka->produce_blocking(s, 100);
-  assert(result.status == KafkaResult::Status::OK);
+  Message result = m_kafka->produce_blocking(s, 100);
+  assert(result.status == Message::Status::OK);
 }
 
 }  // namespace zdb

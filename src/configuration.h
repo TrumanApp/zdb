@@ -26,7 +26,6 @@
 #include "anonymous_store.h"
 #include "as_data.h"
 #include "db.h"
-#include "kafka_connection.h"
 #include "macros.h"
 #include "record.h"
 #include "sharded_db.h"

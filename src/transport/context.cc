@@ -26,7 +26,7 @@
 
 #include "delta_handler.h"
 #include "grouping_delta_handler.h"
-#include "kafka_topic_delta_handler.h"
+#include "kafka/kafka_topic_delta_handler.h"
 #include "rocks_util.h"
 #include "util/file.h"
 

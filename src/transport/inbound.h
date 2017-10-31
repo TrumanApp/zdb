@@ -25,7 +25,7 @@
 #include "anonymous_store.h"
 #include "configuration.h"
 #include "context.h"
-#include "kafka_connection.h"
+#include "kafka/kafka_connection.h"
 #include "macros.h"
 #include "store.h"
 

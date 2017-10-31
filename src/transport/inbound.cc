@@ -20,7 +20,7 @@
 #include <sstream>
 
 #include "anonymous_store.h"
-#include "kafka_connection.h"
+#include "kafka/kafka_connection.h"
 #include "store.h"
 
 using namespace zdb;
@@ -185,16 +185,16 @@ void zdb::process_inbound(KafkaConsumerConnection* recv_topic,
                           atomic<int>& server_state) {
   int failcount = 0;
   while (server_state != STATE_SHUTDOWN) {
-    KafkaResult recv_result = recv_topic->consume();
-    if (recv_result.status == KafkaResult::Status::OK) {
+    Message recv_result = recv_topic->consume();
+    if (recv_result.status == Message::Status::OK) {
       // log_info("incoming", "handling incoming");
       InboundResult res = handler->handle(recv_result.data);
       if (res.success) {
         if (!res.serialized.empty()) {
           // we have a delta we need to place in delta queue in kafka
           // log_trace("inbound", "dealing with delta");
-          KafkaResult::Status status = KafkaResult::Status::WOULD_BLOCK;
-          for (size_t attempts = 0; status == KafkaResult::Status::WOULD_BLOCK;
+          Message::Status status = Message::Status::WOULD_BLOCK;
+          for (size_t attempts = 0; status == Message::Status::WOULD_BLOCK;
                ++attempts) {
             if (attempts) {
               log_info("inbound",
@@ -205,7 +205,7 @@ void zdb::process_inbound(KafkaConsumerConnection* recv_topic,
             }
             auto result = delta_topic->produce_blocking(res.serialized, 100);
             status = result.status;
-            if (status == KafkaResult::Status::ERROR) {
+            if (status == Message::Status::ERROR) {
               log_fatal("inbound", "delta kafka error: %s",
                         result.error.c_str());
             }
@@ -217,7 +217,7 @@ void zdb::process_inbound(KafkaConsumerConnection* recv_topic,
         log_fatal("inbound", "error handling incoming record");
       }
       failcount = 0;
-    } else if (recv_result.status == KafkaResult::Status::WOULD_BLOCK) {
+    } else if (recv_result.status == Message::Status::WOULD_BLOCK) {
       failcount++;
       if (failcount >= 100) {
         log_info("inbound", "empty queue %s, %s, sleeping",

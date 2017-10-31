@@ -18,7 +18,7 @@
 #include <grpc++/server.h>
 
 #include "configuration.h"
-#include "inbound.h"
+#include "transport/inbound.h"
 #include "macros.h"
 #include "utility.h"
 

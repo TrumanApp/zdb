@@ -27,12 +27,13 @@
 
 #include "admin.h"
 #include "as_data.h"
-#include "context.h"
-#include "inbound.h"
 #include "location.h"
 #include "query.h"
 #include "record.h"
 #include "utility.h"
+
+#include "transport/context.h"
+#include "transport/inbound.h"
 
 using namespace zdb;
 

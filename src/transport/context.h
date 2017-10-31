@@ -27,6 +27,8 @@
 #include "sharded_db.h"
 #include "zdb.h"
 
+#include "kafka/kafka_connection.h"
+
 namespace zsearch {
 
 class Record;

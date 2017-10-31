@@ -27,16 +27,33 @@
 
 namespace zdb {
 
-KafkaResult::KafkaResult() = default;
-KafkaResult::KafkaResult(const KafkaResult&) = default;
-KafkaResult::KafkaResult(KafkaResult&&) = default;
-KafkaResult::~KafkaResult() = default;
+Message::Message() = default;
+Message::Message(const Message&) = default;
+Message::Message(Message&&) = default;
+Message::~Message() = default;
 
-KafkaResult& KafkaResult::operator=(const KafkaResult&) = default;
+Message& Message::operator=(const Message&) = default;
+
+Connection::Connection() = default;
+Connection::~Connection() = default;
 
 KafkaConnection::KafkaConnection() = default;
 KafkaConnection::~KafkaConnection() {
   delete_conf_objects();
+}
+
+void KafkaConnection::delete_conf_objects() {
+  // No need to keep configs around
+  if (m_tconf) {
+    log_debug("kafka", "deleting tconf");
+    delete m_tconf;
+    m_tconf = nullptr;
+  }
+  if (m_conf) {
+    log_debug("kafka", "deleting conf");
+    delete m_conf;
+    m_conf = nullptr;
+  }
 }
 
 bool KafkaConnection::connect(const std::string& brokers,
@@ -110,20 +127,6 @@ bool KafkaConnection::connect(const std::string& brokers,
   return m_connected;
 }
 
-void KafkaConnection::delete_conf_objects() {
-  // No need to keep configs around
-  if (m_tconf) {
-    log_debug("kafka", "deleting tconf");
-    delete m_tconf;
-    m_tconf = nullptr;
-  }
-  if (m_conf) {
-    log_debug("kafka", "deleting conf");
-    delete m_conf;
-    m_conf = nullptr;
-  }
-}
-
 KafkaConsumerConnection::KafkaConsumerConnection() = default;
 KafkaConsumerConnection::~KafkaConsumerConnection() {
   if (m_consumer) {
@@ -144,41 +147,41 @@ KafkaConsumerConnection::~KafkaConsumerConnection() {
   }
 }
 
-KafkaResult KafkaConsumerConnection::consume() {
+Message KafkaConsumerConnection::consume() {
   if (m_consumer == nullptr) {
     log_error("kafka", "not a consumer");
-    return KafkaResult();  // Error
+    return Message();  // Error
   }
   std::unique_ptr<RdKafka::Message> msg(m_consumer->consume(1000));
 
-  KafkaResult ret;
+  Message ret;
   switch (msg->err()) {
     case RdKafka::ERR__TIMED_OUT:
-      ret.status = KafkaResult::Status::WOULD_BLOCK;
+      ret.status = Message::Status::WOULD_BLOCK;
       ret.error = "timeout";
       break;
     case RdKafka::ERR__TIMED_OUT_QUEUE:
-      ret.status = KafkaResult::Status::WOULD_BLOCK;
+      ret.status = Message::Status::WOULD_BLOCK;
       ret.error = "timeout";
       break;
     case RdKafka::ERR__PARTITION_EOF:
-      ret.status = KafkaResult::Status::WOULD_BLOCK;
+      ret.status = Message::Status::WOULD_BLOCK;
       ret.error = "eof";
       break;
     case RdKafka::ERR_LEADER_NOT_AVAILABLE:
-      ret.status = KafkaResult::Status::WOULD_BLOCK;
+      ret.status = Message::Status::WOULD_BLOCK;
       ret.error = "leader not available";
       break;
     case RdKafka::ERR_NOT_LEADER_FOR_PARTITION:
-      ret.status = KafkaResult::Status::WOULD_BLOCK;
+      ret.status = Message::Status::WOULD_BLOCK;
       ret.error = "partition leader not available";
       break;
     case RdKafka::ERR_NO_ERROR:
-      ret.status = KafkaResult::Status::OK;
+      ret.status = Message::Status::OK;
       ret.data.assign(static_cast<const char*>(msg->payload()), msg->len());
       break;
     default:
-      ret.status = KafkaResult::Status::ERROR;
+      ret.status = Message::Status::ERROR;
       ret.error = msg->errstr();
       if (ret.error.empty()) {
         ret.error = "unknown";
@@ -250,43 +253,43 @@ KafkaProducerConnection::~KafkaProducerConnection() {
   }
 }
 
-KafkaResult KafkaProducerConnection::produce(const std::string& msg) {
+Message KafkaProducerConnection::produce(const std::string& msg) {
   if (m_producer == nullptr) {
-    return KafkaResult();  // Consumers can't produce.
+    return Message();  // Consumers can't produce.
   }
   RdKafka::ErrorCode resp = m_producer->produce(
       m_topic, RdKafka::Topic::PARTITION_UA, RdKafka::Producer::RK_MSG_COPY,
       const_cast<char*>(msg.data()), msg.size(), nullptr, nullptr);
   m_producer->poll(0);
-  KafkaResult ret;
+  Message ret;
   switch (resp) {
     case RdKafka::ERR_NO_ERROR:
-      ret.status = KafkaResult::Status::OK;
+      ret.status = Message::Status::OK;
       break;
     case RdKafka::ERR__QUEUE_FULL:
-      ret.status = KafkaResult::Status::WOULD_BLOCK;
+      ret.status = Message::Status::WOULD_BLOCK;
       break;
     default:
-      ret.status = KafkaResult::Status::ERROR;
+      ret.status = Message::Status::ERROR;
       ret.error = RdKafka::err2str(resp);
       break;
   }
   return ret;
 }
 
-KafkaResult KafkaProducerConnection::produce_blocking(const std::string& msg,
+Message KafkaProducerConnection::produce_blocking(const std::string& msg,
                                                       size_t max_attempts) {
   size_t attempts = 0;
-  KafkaResult ret;
+  Message ret;
   while (attempts < max_attempts) {
     ret = produce(msg);
     ++attempts;
-    if (ret.status == KafkaResult::Status::OK) {
+    if (ret.status == Message::Status::OK) {
       break;
     }
     sleep(1);
   }
-  if (ret.status != KafkaResult::Status::OK) {
+  if (ret.status != Message::Status::OK) {
     log_error("kafka", "produce failed after %llu attempts (%d): %s", attempts,
               static_cast<int>(ret.status), ret.error.c_str());
   }

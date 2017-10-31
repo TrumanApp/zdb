@@ -27,7 +27,6 @@
 
 #include "anonymous_store.h"
 #include "certificates.h"
-#include "inbound.h"
 #include "protocol_names.h"
 #include "record.h"
 #include "search.grpc.pb.h"

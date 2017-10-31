@@ -17,8 +17,8 @@
 
 #include <grpc++/server.h>
 
+#include "transport/context.h"
 #include "configuration.h"
-#include "inbound.h"
 #include "utility.h"
 
 namespace zdb {
