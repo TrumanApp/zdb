@@ -19,60 +19,9 @@
 
 #include <librdkafka/rdkafkacpp.h>
 
+#include "transport/connection.h"
+
 namespace zdb {
-
-struct Message {
-  enum class Status {
-    OK,
-    WOULD_BLOCK,
-    ERROR,
-  };
-  Status status = Status::ERROR;
-  std::string data;
-  std::string error;
-
-  Message();
-  Message(const Message&);
-  Message(Message&&);
-  ~Message();
-
-  Message& operator=(const Message&);
-};
-
-enum class ClientType {
-  UNKNOWN,
-  KAFKA_PRODUCER,
-  KAFKA_CONSUMER,
-  NANOMSG_PRODUCER,
-  NANOMSG_CONSUMER,
-};
-
-class Connection {
- public:
-  Connection();
-
-  bool connect(const std::string& brokers,
-               const std::string& topic,
-               const std::string& client_id);
-
-  bool connected() const { return m_connected; };
-
-  virtual ClientType client_type() const = 0;
-
-  const std::string& topic_name() const { return m_topic_name; }
-
-  virtual ~Connection();
-
- protected:
-  bool m_connected = false;
-  std::string m_topic_name;
-  virtual bool connect_impl(const std::string& brokers,
-                            const std::string& topic,
-                            const std::string& client_id) = 0;
-
- private:
-  Connection(const Connection&) = delete;
-};
 
 class KafkaConnection : public Connection {
  public:

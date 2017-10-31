@@ -27,16 +27,6 @@
 
 namespace zdb {
 
-Message::Message() = default;
-Message::Message(const Message&) = default;
-Message::Message(Message&&) = default;
-Message::~Message() = default;
-
-Message& Message::operator=(const Message&) = default;
-
-Connection::Connection() = default;
-Connection::~Connection() = default;
-
 KafkaConnection::KafkaConnection() = default;
 KafkaConnection::~KafkaConnection() {
   delete_conf_objects();
