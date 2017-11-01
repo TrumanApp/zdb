@@ -1,0 +1,19 @@
+We are building a cyber security analysis platform for the insurance industry.  Within the next few months we intend to begin broad port scanning of the IPv4 space.  There are two conversations I'd like to begin with the appropriate staff at google:
+
+1.  How do we appropriately communicate our intent, both to Google and to our scanning targets, such that Google is satisfied that we have not violated the terms of our agreement.
+2.  How can we provision the appropriate compute assets to ensure that this job runs in a reasonable time frame for us (12-36 hours would be acceptable).  We would also like to understand pricing for these assets.
+
+The research institution "Censys" provides precedent for scans of this nature being run on google hardware.  We will be modeling both our architecture and our communication of intent around the approach they established.
+
+Some description of the communication of intent can be found here:
+
+    https://github.com/zmap/zmap/wiki/Scanning-Best-Practices
+
+Our hardware needs revolve around support of PF_RING, and maximizing upstream bandwidth:
+
+    http://www.ntop.org/products/packet-capture/pf_ring/
+
+Who do we need to talk to to properly communicate our intent, and who should we talk to about provisioning the appropriate hardware and network assets?
+
+Best wishes,
+Brandon

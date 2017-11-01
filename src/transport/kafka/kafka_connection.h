@@ -38,7 +38,7 @@ class KafkaConnection : virtual public Connection {
   void delete_conf_objects();
 };
 
-class KafkaConsumerConnection : public KafkaConnection, public ConsumerConnection {
+class KafkaConsumerConnection : virtual public KafkaConnection, virtual public ConsumerConnection {
  public:
   KafkaConsumerConnection();
   ~KafkaConsumerConnection();
@@ -60,7 +60,7 @@ class KafkaConsumerConnection : public KafkaConnection, public ConsumerConnectio
   KafkaConsumerConnection(const KafkaConsumerConnection&) = delete;
 };
 
-class KafkaProducerConnection : public KafkaConnection, public ProducerConnection {
+class KafkaProducerConnection : virtual public KafkaConnection, virtual public ProducerConnection {
  public:
   KafkaProducerConnection();
   ~KafkaProducerConnection();
