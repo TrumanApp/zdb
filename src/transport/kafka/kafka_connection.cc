@@ -27,6 +27,10 @@
 
 namespace zdb {
 
+// ============================================================================
+// Class: KafkaConnection
+// ============================================================================
+
 KafkaConnection::KafkaConnection() = default;
 KafkaConnection::~KafkaConnection() {
   delete_conf_objects();
@@ -117,7 +121,11 @@ bool KafkaConnection::connect(const std::string& brokers,
   return m_connected;
 }
 
-KafkaConsumerConnection::KafkaConsumerConnection() = default;
+// ============================================================================
+// Class: KafkaConsumerConnection
+// ============================================================================
+
+KafkaConsumerConnection::KafkaConsumerConnection(): KafkaConnection(), ConsumerConnection() {};
 KafkaConsumerConnection::~KafkaConsumerConnection() {
   if (m_consumer) {
     log_debug("kafka", "closing consumer");
@@ -225,7 +233,11 @@ bool KafkaConsumerConnection::connect_impl(const std::string& brokers,
   return true;
 }
 
-KafkaProducerConnection::KafkaProducerConnection() = default;
+// ============================================================================
+// Class: KafkaProducerConnection
+// ============================================================================
+
+KafkaProducerConnection::KafkaProducerConnection(): KafkaConnection(), ProducerConnection() {};
 KafkaProducerConnection::~KafkaProducerConnection() {
   while (m_producer && m_producer->outq_len() > 0) {
     log_debug("kafka", "flushing producer");

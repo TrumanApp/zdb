@@ -20,7 +20,7 @@
 #include <sstream>
 
 #include "anonymous_store.h"
-#include "kafka/kafka_connection.h"
+#include "connection.h"
 #include "store.h"
 
 using namespace zdb;
@@ -179,8 +179,8 @@ static std::string hex_encode(const char* data, size_t len) {
   return s.str();
 }
 
-void zdb::process_inbound(KafkaConsumerConnection* recv_topic,
-                          KafkaProducerConnection* delta_topic,
+void zdb::process_inbound(ConsumerConnection* recv_topic,
+                          ProducerConnection* delta_topic,
                           InboundHandler* handler,
                           atomic<int>& server_state) {
   int failcount = 0;
@@ -237,8 +237,8 @@ void zdb::process_inbound(KafkaConsumerConnection* recv_topic,
 template <typename conf_type>
 InboundOptions make_partial_inbound_opts(const conf_type& c,
                                          size_t worker_thread_offset,
-                                         KafkaConsumerConnection* incoming,
-                                         KafkaProducerConnection* outgoing) {
+                                         ConsumerConnection* incoming,
+                                         ProducerConnection* outgoing) {
   InboundOptions opt;
   opt.threads = c.worker_threads;
   opt.thread_id_offset = worker_thread_offset;

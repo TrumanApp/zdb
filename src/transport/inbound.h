@@ -45,16 +45,16 @@ struct InboundOptions {
   size_t threads;
   size_t thread_id_offset;
   std::vector<std::unique_ptr<InboundHandler>> handlers;
-  KafkaConsumerConnection* incoming;
-  KafkaProducerConnection* outgoing;
+  ConsumerConnection* incoming;
+  ProducerConnection* outgoing;
 };
 
 std::vector<InboundOptions> configure_inbound(ConfigValues* config_values,
                                               StoreContext* store_ctx,
                                               KafkaContext* kafka_ctx);
 
-void process_inbound(KafkaConsumerConnection* recv_topic,
-                     KafkaProducerConnection* delta_topic,
+void process_inbound(ConsumerConnection* recv_topic,
+                     ProducerConnection* delta_topic,
                      InboundHandler* handler,
                      std::atomic<int>& server_state);
 

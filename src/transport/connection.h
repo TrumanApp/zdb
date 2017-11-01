@@ -48,8 +48,9 @@ enum class ClientType {
 class Connection {
  public:
   Connection();
+  ~Connection();
 
-  bool connect(const std::string& brokers,
+  virtual bool connect(const std::string& brokers,
                const std::string& topic,
                const std::string& client_id);
 
@@ -58,8 +59,6 @@ class Connection {
   virtual ClientType client_type() const = 0;
 
   const std::string& topic_name() const { return m_topic_name; }
-
-  virtual ~Connection();
 
  protected:
   bool m_connected = false;
@@ -70,6 +69,23 @@ class Connection {
 
  private:
   Connection(const Connection&) = delete;
+};
+
+class ConsumerConnection : virtual public Connection {
+ public:
+  ConsumerConnection();
+  ~ConsumerConnection();
+
+  virtual Message consume();
+};
+
+class ProducerConnection : virtual public Connection {
+ public:
+  ProducerConnection();
+  ~ProducerConnection();
+
+  virtual Message produce(const std::string& msg);
+  virtual Message produce_blocking(const std::string& msg, size_t max_attempts);
 };
 
 }  // namespace zdb

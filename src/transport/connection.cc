@@ -26,4 +26,10 @@ Message& Message::operator=(const Message&) = default;
 Connection::Connection() = default;
 Connection::~Connection() = default;
 
+ProducerConnection::ProducerConnection() = default;
+ProducerConnection::~ProducerConnection() = default;
+
+ConsumerConnection::ConsumerConnection() = default;
+ConsumerConnection::~ConsumerConnection() = default;
+
 }  // namespace zdb

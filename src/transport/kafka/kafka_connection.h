@@ -23,14 +23,14 @@
 
 namespace zdb {
 
-class KafkaConnection : public Connection {
+class KafkaConnection : virtual public Connection {
  public:
   KafkaConnection();
   ~KafkaConnection();
 
   bool connect(const std::string& brokers,
                const std::string& topic,
-               const std::string& client_id);
+               const std::string& client_id) override;
 
  protected:
   RdKafka::Conf* m_conf = nullptr;
@@ -38,7 +38,7 @@ class KafkaConnection : public Connection {
   void delete_conf_objects();
 };
 
-class KafkaConsumerConnection : public KafkaConnection {
+class KafkaConsumerConnection : public KafkaConnection, public ConsumerConnection {
  public:
   KafkaConsumerConnection();
   ~KafkaConsumerConnection();
@@ -47,7 +47,7 @@ class KafkaConsumerConnection : public KafkaConnection {
     return ClientType::KAFKA_CONSUMER;
   }
 
-  Message consume();
+  Message consume() override;
 
  private:
   virtual bool connect_impl(const std::string& brokers,
@@ -60,7 +60,7 @@ class KafkaConsumerConnection : public KafkaConnection {
   KafkaConsumerConnection(const KafkaConsumerConnection&) = delete;
 };
 
-class KafkaProducerConnection : public KafkaConnection {
+class KafkaProducerConnection : public KafkaConnection, public ProducerConnection {
  public:
   KafkaProducerConnection();
   ~KafkaProducerConnection();
@@ -69,8 +69,8 @@ class KafkaProducerConnection : public KafkaConnection {
     return ClientType::KAFKA_PRODUCER;
   }
 
-  Message produce(const std::string& msg);
-  Message produce_blocking(const std::string& msg, size_t max_attempts);
+  Message produce(const std::string& msg) override;
+  Message produce_blocking(const std::string& msg, size_t max_attempts) override;
 
  private:
   virtual bool connect_impl(const std::string& brokers,
