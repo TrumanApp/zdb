@@ -12,19 +12,19 @@
  * permissions and limitations under the License.
  */
 
-#ifndef ZDB_SRC_KAFKA_TOPIC_DELTA_HANDLER_H
-#define ZDB_SRC_KAFKA_TOPIC_DELTA_HANDLER_H
+#ifndef ZDB_SRC_TOPIC_DELTA_HANDLER_H
+#define ZDB_SRC_TOPIC_DELTA_HANDLER_H
 
 #include "delta_handler.h"
-#include "kafka_connection.h"
+#include "transport/connection.h"
 #include "macros.h"
 
 namespace zdb {
 
-class KafkaTopicDeltaHandler : public DeltaHandler {
+class TopicDeltaHander : public DeltaHandler {
  public:
-  KafkaTopicDeltaHandler(KafkaProducerConnection*);
-  ~KafkaTopicDeltaHandler();
+  TopicDeltaHander(ProducerConnection*);
+  ~TopicDeltaHander();
 
   void handle_delta(const StoreResult& res) override;
   void handle_delta(const AnonymousResult& res) override;
@@ -34,11 +34,11 @@ class KafkaTopicDeltaHandler : public DeltaHandler {
  private:
   void handle_serialized(const std::string& s);
 
-  KafkaProducerConnection* m_kafka;
+  ProducerConnection* m_producer;
 
-  DISALLOW_COPY_ASSIGN(KafkaTopicDeltaHandler);
+  DISALLOW_COPY_ASSIGN(TopicDeltaHander);
 };
 
 }  // namespace zdb
 
-#endif /* ZDB_SRC_KAFKA_TOPIC_DELTA_HANDLER_H */
+#endif /* ZDB_SRC_TOPIC_DELTA_HANDLER_H */

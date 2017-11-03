@@ -24,11 +24,14 @@
 
 #include <zmap/logger.h>
 
-#include "delta_handler.h"
-#include "grouping_delta_handler.h"
-#include "kafka/kafka_topic_delta_handler.h"
 #include "rocks_util.h"
 #include "util/file.h"
+
+#include "delta_handler.h"
+#include "grouping_delta_handler.h"
+#include "topic_delta_handler.h"
+#include "connection.h"
+#include "kafka/kafka_connection.h"
 
 namespace zdb {
 
@@ -46,44 +49,58 @@ rocksdb::DB* open_rocks(const rocksdb::Options& opt, const std::string& path) {
   return db;
 }
 
-std::unique_ptr<KafkaConsumerConnection> connect_inbound(
+std::unique_ptr<ConsumerConnection> connect_inbound(
+    const std::string& queue_transport,
     const std::string& brokers,
     const std::string& topic) {
   std::string client_id = topic + "_consumer";
-  std::unique_ptr<KafkaConsumerConnection> consumer(
-      new KafkaConsumerConnection);
+  std::unique_ptr<ConsumerConnection> consumer;
+
+  if (queue_transport == "kafka") {
+    consumer.reset(new KafkaConsumerConnection);
+  } else {
+    log_fatal("context", "unable to create queue transport: %s", queue_transport.c_str());
+  }
 
   consumer->connect(brokers, topic, client_id);
   return consumer;
 }
 
-std::unique_ptr<KafkaProducerConnection> connect_outbound(
+std::unique_ptr<ProducerConnection> connect_outbound(
+    const std::string& queue_transport,
     const std::string& brokers,
     const std::string& topic) {
   std::string client_id = topic + "_outbound";
-  std::unique_ptr<KafkaProducerConnection> producer(
-      new KafkaProducerConnection);
+  std::unique_ptr<ProducerConnection> producer;
+
+  if (queue_transport == "kafka") {
+    producer.reset(new KafkaProducerConnection);
+  } else {
+    log_fatal("context", "unable to create queue transport: %s", queue_transport.c_str());
+  }
 
   producer->connect(brokers, topic, client_id);
   return producer;
 }
 
-std::unique_ptr<KafkaConsumerConnection> connect_inbound_if(
+std::unique_ptr<ConsumerConnection> connect_inbound_if(
+    const std::string& queue_transport,
     bool enabled,
     const std::string& brokers,
     const std::string& topic) {
   if (enabled) {
-    return connect_inbound(brokers, topic);
+    return connect_inbound(queue_transport, brokers, topic);
   }
   return nullptr;
 }
 
-std::unique_ptr<KafkaProducerConnection> connect_outbound_if(
+std::unique_ptr<ProducerConnection> connect_outbound_if(
+    const std::string& queue_transport,
     bool enabled,
     const std::string& brokers,
     const std::string& topic) {
   if (enabled) {
-    return connect_outbound(brokers, topic);
+    return connect_outbound(queue_transport, brokers, topic);
   }
   return nullptr;
 }
@@ -322,63 +339,62 @@ AnonymousStore<HashKey> StoreContext::make_certificate_store(size_t tid) {
   return AnonymousStore<HashKey>(m_db_ctx->certificate(), std::move(lock));
 }
 
-KafkaContext::KafkaContext(const std::string& brokers) : m_brokers(brokers) {}
+ConnectionContext::ConnectionContext(const std::string& brokers) : m_brokers(brokers) {}
 
-void KafkaContext::connect_enabled(const EnableMap& enabled) {
-  m_ipv4 = connect_inbound_if(enabled.ipv4, m_brokers, kIPv4InboundName);
-  m_domain = connect_inbound_if(enabled.domain, m_brokers, kDomainInboundName);
-  m_certificate = connect_inbound_if(enabled.certificate, m_brokers,
+void ConnectionContext::connect_enabled(const EnableMap& enabled) {
+  m_ipv4 = connect_inbound_if(queue_transport(), enabled.ipv4, m_brokers, kIPv4InboundName);
+  m_domain = connect_inbound_if(queue_transport(), enabled.domain, m_brokers, kDomainInboundName);
+  m_certificate = connect_inbound_if(queue_transport(), enabled.certificate, m_brokers,
                                      kCertificateInboundName);
-  m_external_cert = connect_inbound_if(enabled.external_cert, m_brokers,
+  m_external_cert = connect_inbound_if(queue_transport(), enabled.external_cert, m_brokers,
                                        kExternalCertificateInboundName);
-  m_sct = connect_inbound_if(enabled.sct, m_brokers, kSCTInboundName);
-  m_processed_cert = connect_inbound_if(enabled.processed_cert, m_brokers,
+  m_sct = connect_inbound_if(queue_transport(), enabled.sct, m_brokers, kSCTInboundName);
+  m_processed_cert = connect_inbound_if(queue_transport(), enabled.processed_cert, m_brokers,
                                         kProcessedCertificateInboundName);
 
-  m_ipv4_deltas = connect_outbound_if(!!m_ipv4, m_brokers, kIPv4OutboundName);
+  m_ipv4_deltas = connect_outbound_if(queue_transport(), !!m_ipv4, m_brokers, kIPv4OutboundName);
   m_domain_deltas =
-      connect_outbound_if(!!m_domain, m_brokers, kDomainOutboundName);
+      connect_outbound_if(queue_transport(), !!m_domain, m_brokers, kDomainOutboundName);
   m_certificates_to_process =
-      connect_outbound_if(!!m_certificate || !!m_external_cert, m_brokers,
+      connect_outbound_if(queue_transport(), !!m_certificate || !!m_external_cert, m_brokers,
                           kCertificateOutboundName);
   m_certificate_deltas = connect_outbound_if(
+      queue_transport(),
       !!m_certificate || !!m_external_cert || !!m_sct || !!m_processed_cert,
       m_brokers, kProcessedCertificateOutboundName);
 }
 
-DeltaContext::DeltaContext(KafkaContext* kafka_ctx) : m_kafka_ctx(kafka_ctx) {}
+DeltaContext::DeltaContext(ConnectionContext* connection_ctx) : m_connection_ctx(connection_ctx) {}
 
 std::unique_ptr<DeltaHandler> DeltaContext::new_ipv4_delta_handler() {
-  std::unique_ptr<DeltaHandler> kafka_handler(
-      new KafkaTopicDeltaHandler(m_kafka_ctx->ipv4_deltas()));
-  std::unique_ptr<DeltaHandler> handler(
-      new GroupingDeltaHandler(GroupingDeltaHandler::GROUP_IP));
-  GroupingDeltaHandler* grouping_handler =
-      reinterpret_cast<GroupingDeltaHandler*>(handler.get());
-  grouping_handler->set_underlying_handler(std::move(kafka_handler));
+  std::unique_ptr<DeltaHandler> delta_handler(new TopicDeltaHander(m_connection_ctx->ipv4_deltas()));
+  std::unique_ptr<DeltaHandler> handler(new GroupingDeltaHandler(GroupingDeltaHandler::GROUP_IP));
+  GroupingDeltaHandler* grouping_handler = reinterpret_cast<GroupingDeltaHandler*>(handler.get());
+  grouping_handler->set_underlying_handler(std::move(delta_handler));
+
   return handler;
 }
 
 std::unique_ptr<DeltaHandler> DeltaContext::new_domain_delta_handler() {
-  std::unique_ptr<DeltaHandler> kafka_handler(
-      new KafkaTopicDeltaHandler(m_kafka_ctx->domain_deltas()));
+  std::unique_ptr<DeltaHandler> delta_handler(
+      new TopicDeltaHander(m_connection_ctx->domain_deltas()));
   std::unique_ptr<DeltaHandler> handler(
       new GroupingDeltaHandler(GroupingDeltaHandler::GROUP_DOMAIN));
   GroupingDeltaHandler* grouping_handler =
       reinterpret_cast<GroupingDeltaHandler*>(handler.get());
-  grouping_handler->set_underlying_handler(std::move(kafka_handler));
+  grouping_handler->set_underlying_handler(std::move(delta_handler));
   return handler;
 }
 
 std::unique_ptr<DeltaHandler> DeltaContext::new_certificate_delta_handler() {
   return std::unique_ptr<DeltaHandler>(
-      new KafkaTopicDeltaHandler(m_kafka_ctx->certificate_deltas()));
+      new TopicDeltaHander(m_connection_ctx->certificate_deltas()));
 }
 
 std::unique_ptr<DeltaHandler>
 DeltaContext::new_certificates_to_process_delta_handler() {
   return std::unique_ptr<DeltaHandler>(
-      new KafkaTopicDeltaHandler(m_kafka_ctx->certificates_to_process()));
+      new TopicDeltaHander(m_connection_ctx->certificates_to_process()));
 }
 
 std::unique_ptr<DBContext> create_db_context_from_config_values(
@@ -438,11 +454,13 @@ std::unique_ptr<LockContext> create_lock_context_from_config_values(
       ipv4_threads + 2, domain_threads + 2, certificate_threads + 2));
 }
 
-std::unique_ptr<KafkaContext> create_kafka_context_from_config_values(
+std::unique_ptr<ConnectionContext> create_connection_context_from_config_values(
     const std::string& brokers,
     const ConfigValues& config_values) {
-  std::unique_ptr<KafkaContext> ctx(new KafkaContext(brokers));
-  KafkaContext::EnableMap enabled;
+  std::unique_ptr<ConnectionContext> ctx(new ConnectionContext(brokers));
+
+  ctx->set_queue_transport(config_values.queue_transport);
+  ConnectionContext::EnableMap enabled;
   enabled.ipv4 = config_values.ipv4.should_open();
   enabled.domain = config_values.domain.should_open();
   enabled.certificate = config_values.certificate.should_open();
@@ -450,6 +468,7 @@ std::unique_ptr<KafkaContext> create_kafka_context_from_config_values(
   enabled.sct = config_values.sct.should_open();
   enabled.processed_cert = config_values.processed_cert.should_open();
   ctx->connect_enabled(enabled);
+
   return ctx;
 }
 

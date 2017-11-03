@@ -73,6 +73,8 @@ struct ConfigValues {
     bool should_open() const { return enabled && worker_threads > 0; }
   };
 
+  std::string queue_transport;
+
   BasicDatabase ipv4;
   BasicDatabase domain;
   BasicDatabase certificate;

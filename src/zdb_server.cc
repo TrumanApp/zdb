@@ -160,15 +160,15 @@ int main(int argc, char* argv[]) {
     log_fatal("server", "unabled to create stores");
   }
 
-  std::unique_ptr<KafkaContext> kafka_ctx =
-      create_kafka_context_from_config_values(FLAGS_kafka_brokers,
+  std::unique_ptr<ConnectionContext> connection_ctx =
+      create_connection_context_from_config_values(FLAGS_kafka_brokers,
                                               config_values);
 
-  if (!kafka_ctx) {
-    log_fatal("server", "unable to create kakfa connections");
+  if (!connection_ctx) {
+    log_fatal("server", "unable to create queue connections for %s", connection_ctx->queue_transport().c_str());
   }
 
-  DeltaContext delta_ctx(kafka_ctx.get());
+  DeltaContext delta_ctx(connection_ctx.get());
 
   log_info("server", "registering signal handlers");
   if (signal(SIGINT, sig_handler) == SIG_ERR) {
@@ -179,7 +179,7 @@ int main(int argc, char* argv[]) {
   }
 
   std::vector<InboundOptions> queues =
-      configure_inbound(&config_values, store_ctx.get(), kafka_ctx.get());
+      configure_inbound(&config_values, store_ctx.get(), connection_ctx.get());
 
   std::vector<std::thread> threads;
   for (auto& queue : queues) {

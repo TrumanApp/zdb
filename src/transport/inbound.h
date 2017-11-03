@@ -25,7 +25,7 @@
 #include "anonymous_store.h"
 #include "configuration.h"
 #include "context.h"
-#include "kafka/kafka_connection.h"
+#include "connection.h"
 #include "macros.h"
 #include "store.h"
 
@@ -51,7 +51,7 @@ struct InboundOptions {
 
 std::vector<InboundOptions> configure_inbound(ConfigValues* config_values,
                                               StoreContext* store_ctx,
-                                              KafkaContext* kafka_ctx);
+                                              ConnectionContext* connection_ctx);
 
 void process_inbound(ConsumerConnection* recv_topic,
                      ProducerConnection* delta_topic,

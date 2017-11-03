@@ -27,7 +27,7 @@
 #include "sharded_db.h"
 #include "zdb.h"
 
-#include "kafka/kafka_connection.h"
+#include "connection.h"
 
 namespace zsearch {
 
@@ -232,7 +232,7 @@ class StoreContext : public Context {
   std::unique_ptr<ASTree> m_as_tree;
 };
 
-class KafkaContext : public Context {
+class ConnectionContext : public Context {
  public:
   struct EnableMap {
     bool ipv4 = false;
@@ -243,49 +243,53 @@ class KafkaContext : public Context {
     bool processed_cert = false;
   };
 
-  KafkaContext(const std::string& brokers);
+  ConnectionContext(const std::string& brokers);
 
   void connect_enabled(const EnableMap& enabled);
 
-  KafkaConsumerConnection* ipv4() { return m_ipv4.get(); }
-  KafkaConsumerConnection* domain() { return m_domain.get(); }
-  KafkaConsumerConnection* certificate() { return m_certificate.get(); }
-  KafkaConsumerConnection* external_cert() { return m_external_cert.get(); }
-  KafkaConsumerConnection* sct() { return m_sct.get(); }
-  KafkaConsumerConnection* processed_cert() { return m_processed_cert.get(); }
+  void set_queue_transport(const std::string& queue_transport) { m_queue_transport = queue_transport; }
+  const std::string& queue_transport() { return m_queue_transport; }
 
-  KafkaProducerConnection* ipv4_deltas() { return m_ipv4_deltas.get(); }
-  KafkaProducerConnection* domain_deltas() { return m_domain_deltas.get(); }
-  KafkaProducerConnection* certificate_deltas() {
+  ConsumerConnection* ipv4() { return m_ipv4.get(); }
+  ConsumerConnection* domain() { return m_domain.get(); }
+  ConsumerConnection* certificate() { return m_certificate.get(); }
+  ConsumerConnection* external_cert() { return m_external_cert.get(); }
+  ConsumerConnection* sct() { return m_sct.get(); }
+  ConsumerConnection* processed_cert() { return m_processed_cert.get(); }
+
+  ProducerConnection* ipv4_deltas() { return m_ipv4_deltas.get(); }
+  ProducerConnection* domain_deltas() { return m_domain_deltas.get(); }
+  ProducerConnection* certificate_deltas() {
     return m_certificate_deltas.get();
   }
-  KafkaProducerConnection* certificates_to_process() {
+  ProducerConnection* certificates_to_process() {
     return m_certificates_to_process.get();
   }
 
  private:
   // Consumers
-  std::unique_ptr<KafkaConsumerConnection> m_ipv4;
-  std::unique_ptr<KafkaConsumerConnection> m_domain;
-  std::unique_ptr<KafkaConsumerConnection> m_certificate;
-  std::unique_ptr<KafkaConsumerConnection> m_external_cert;
-  std::unique_ptr<KafkaConsumerConnection> m_sct;
-  std::unique_ptr<KafkaConsumerConnection> m_processed_cert;
+  std::unique_ptr<ConsumerConnection> m_ipv4;
+  std::unique_ptr<ConsumerConnection> m_domain;
+  std::unique_ptr<ConsumerConnection> m_certificate;
+  std::unique_ptr<ConsumerConnection> m_external_cert;
+  std::unique_ptr<ConsumerConnection> m_sct;
+  std::unique_ptr<ConsumerConnection> m_processed_cert;
 
   // Producers
-  std::unique_ptr<KafkaProducerConnection> m_ipv4_deltas;
-  std::unique_ptr<KafkaProducerConnection> m_domain_deltas;
-  std::unique_ptr<KafkaProducerConnection> m_certificate_deltas;
-  std::unique_ptr<KafkaProducerConnection> m_certificates_to_process;
+  std::unique_ptr<ProducerConnection> m_ipv4_deltas;
+  std::unique_ptr<ProducerConnection> m_domain_deltas;
+  std::unique_ptr<ProducerConnection> m_certificate_deltas;
+  std::unique_ptr<ProducerConnection> m_certificates_to_process;
 
   std::string m_brokers;
+  std::string m_queue_transport;
 
-  DISALLOW_COPY_ASSIGN(KafkaContext);
+  DISALLOW_COPY_ASSIGN(ConnectionContext);
 };
 
 class DeltaContext : public Context {
  public:
-  DeltaContext(KafkaContext* kafka_ctx);
+  DeltaContext(ConnectionContext* connection_ctx);
   virtual ~DeltaContext() = default;
 
   std::unique_ptr<DeltaHandler> new_ipv4_delta_handler();
@@ -294,7 +298,7 @@ class DeltaContext : public Context {
   std::unique_ptr<DeltaHandler> new_certificates_to_process_delta_handler();
 
  private:
-  KafkaContext* m_kafka_ctx;
+  ConnectionContext* m_connection_ctx;
 
   DISALLOW_COPY_ASSIGN(DeltaContext);
 };
@@ -305,7 +309,7 @@ std::unique_ptr<DBContext> create_db_context_from_config_values(
 std::unique_ptr<LockContext> create_lock_context_from_config_values(
     const ConfigValues& config_values);
 
-std::unique_ptr<KafkaContext> create_kafka_context_from_config_values(
+std::unique_ptr<ConnectionContext> create_connection_context_from_config_values(
     const std::string& brokers,
     const ConfigValues& config_values);
 

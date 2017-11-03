@@ -26,6 +26,7 @@
 namespace zdb {
 
 const char* QUEUES_KEY = "queues";
+const char* QUEUE_TRANSPORT_KEY = "queue_transport";
 const char* DELTA_QUEUE_KEY = "delta_redis_queue";
 const char* DB_PATH_KEY = "db_path";
 const char* WORKER_THREADS_KEY = "threads";
@@ -147,6 +148,12 @@ bool load_json_from_file(const std::string& filepath, Json::Value* out) {
 
 // static
 bool ConfigValues::from_json(const Json::Value& config, ConfigValues* out) {
+
+  // what transport are we using?
+  if (!config_read_string(config, QUEUE_TRANSPORT_KEY, &out->queue_transport)) {
+    return false;
+  }
+
   Json::Value queue_config;
   if (!config_read_object(config, QUEUES_KEY, &queue_config)) {
     return false;

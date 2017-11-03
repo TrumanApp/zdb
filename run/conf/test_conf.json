@@ -1,4 +1,5 @@
 {
+  "queue_transport": "kafka",
   "queues": {
     "ipv4": {
       "db_path": "/tmp/zdb/ipv4",

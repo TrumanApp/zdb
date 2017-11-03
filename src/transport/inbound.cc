@@ -191,7 +191,7 @@ void zdb::process_inbound(ConsumerConnection* recv_topic,
       InboundResult res = handler->handle(recv_result.data);
       if (res.success) {
         if (!res.serialized.empty()) {
-          // we have a delta we need to place in delta queue in kafka
+          // we have a delta we need to place in delta queue
           // log_trace("inbound", "dealing with delta");
           Message::Status status = Message::Status::WOULD_BLOCK;
           for (size_t attempts = 0; status == Message::Status::WOULD_BLOCK;
@@ -206,7 +206,7 @@ void zdb::process_inbound(ConsumerConnection* recv_topic,
             auto result = delta_topic->produce_blocking(res.serialized, 100);
             status = result.status;
             if (status == Message::Status::ERROR) {
-              log_fatal("inbound", "delta kafka error: %s",
+              log_fatal("inbound", "delta error: %s",
                         result.error.c_str());
             }
           }
@@ -227,7 +227,7 @@ void zdb::process_inbound(ConsumerConnection* recv_topic,
       }
     } else {
       // Bad things happened
-      log_fatal("inbound", "recv kafka error: %s", recv_result.error.c_str());
+      log_fatal("inbound", "recv error: %s", recv_result.error.c_str());
     }
   }
   log_info("inbound", "%s thread shutting down.",
@@ -249,11 +249,11 @@ InboundOptions make_partial_inbound_opts(const conf_type& c,
 
 vector<InboundOptions> zdb::configure_inbound(ConfigValues* config_values,
                                               StoreContext* store_ctx,
-                                              KafkaContext* kafka_ctx) {
+                                              ConnectionContext* connection_ctx) {
   vector<InboundOptions> out;
   if (config_values->ipv4.enabled && config_values->ipv4.worker_threads > 0) {
     InboundOptions ipv4 = make_partial_inbound_opts(
-        config_values->ipv4, 0, kafka_ctx->ipv4(), kafka_ctx->ipv4_deltas());
+        config_values->ipv4, 0, connection_ctx->ipv4(), connection_ctx->ipv4_deltas());
     for (size_t i = 0; i < ipv4.threads; ++i) {
       size_t tid = i + ipv4.thread_id_offset + 2;
       auto s = store_ctx->make_ipv4_store(tid);
@@ -265,8 +265,8 @@ vector<InboundOptions> zdb::configure_inbound(ConfigValues* config_values,
   if (config_values->domain.enabled &&
       config_values->domain.worker_threads > 0) {
     InboundOptions domain =
-        make_partial_inbound_opts(config_values->domain, 0, kafka_ctx->domain(),
-                                  kafka_ctx->domain_deltas());
+        make_partial_inbound_opts(config_values->domain, 0, connection_ctx->domain(),
+                                  connection_ctx->domain_deltas());
     for (size_t i = 0; i < domain.threads; ++i) {
       size_t tid = i + domain.thread_id_offset + 2;
       auto s = store_ctx->make_domain_store(tid);
@@ -278,8 +278,8 @@ vector<InboundOptions> zdb::configure_inbound(ConfigValues* config_values,
   if (config_values->certificate.enabled &&
       config_values->certificate.worker_threads > 0) {
     InboundOptions certificate = make_partial_inbound_opts(
-        config_values->certificate, 0, kafka_ctx->certificate(),
-        kafka_ctx->certificates_to_process());
+        config_values->certificate, 0, connection_ctx->certificate(),
+        connection_ctx->certificates_to_process());
 
     for (size_t i = 0; i < certificate.threads; ++i) {
       size_t tid = i + certificate.thread_id_offset + 2;
@@ -299,7 +299,7 @@ vector<InboundOptions> zdb::configure_inbound(ConfigValues* config_values,
     }
     InboundOptions external_certificate = make_partial_inbound_opts(
         config_values->external_certificate, external_certificate_offset,
-        kafka_ctx->external_cert(), kafka_ctx->certificates_to_process());
+        connection_ctx->external_cert(), connection_ctx->certificates_to_process());
     for (size_t i = 0; i < external_certificate.threads; ++i) {
       size_t tid = i + external_certificate.thread_id_offset + 2;
       auto s = store_ctx->make_certificate_store(tid);
@@ -315,8 +315,8 @@ vector<InboundOptions> zdb::configure_inbound(ConfigValues* config_values,
       sct_offset += config_values->external_certificate.worker_threads;
     }
     InboundOptions sct = make_partial_inbound_opts(
-        config_values->sct, sct_offset, kafka_ctx->sct(),
-        kafka_ctx->certificate_deltas());
+        config_values->sct, sct_offset, connection_ctx->sct(),
+        connection_ctx->certificate_deltas());
     for (size_t i = 0; i < sct.threads; ++i) {
       size_t tid = i + sct.thread_id_offset + 2;
       auto s = store_ctx->make_certificate_store(tid);
@@ -333,7 +333,7 @@ vector<InboundOptions> zdb::configure_inbound(ConfigValues* config_values,
     }
     InboundOptions processed_cert = make_partial_inbound_opts(
         config_values->processed_cert, processed_cert_offset,
-        kafka_ctx->processed_cert(), kafka_ctx->certificate_deltas());
+        connection_ctx->processed_cert(), connection_ctx->certificate_deltas());
     for (size_t i = 0; i < processed_cert.threads; ++i) {
       size_t tid = i + processed_cert.thread_id_offset + 2;
       auto s = store_ctx->make_certificate_store(tid);
