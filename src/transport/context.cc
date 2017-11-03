@@ -339,8 +339,6 @@ AnonymousStore<HashKey> StoreContext::make_certificate_store(size_t tid) {
   return AnonymousStore<HashKey>(m_db_ctx->certificate(), std::move(lock));
 }
 
-ConnectionContext::ConnectionContext(const std::string& brokers) : m_brokers(brokers) {}
-
 void ConnectionContext::connect_enabled(const EnableMap& enabled) {
   m_ipv4 = connect_inbound_if(queue_transport(), enabled.ipv4, m_brokers, kIPv4InboundName);
   m_domain = connect_inbound_if(queue_transport(), enabled.domain, m_brokers, kDomainInboundName);
@@ -454,12 +452,18 @@ std::unique_ptr<LockContext> create_lock_context_from_config_values(
       ipv4_threads + 2, domain_threads + 2, certificate_threads + 2));
 }
 
-std::unique_ptr<ConnectionContext> create_connection_context_from_config_values(
-    const std::string& brokers,
-    const ConfigValues& config_values) {
-  std::unique_ptr<ConnectionContext> ctx(new ConnectionContext(brokers));
+std::unique_ptr<ConnectionContext> create_connection_context_from_config_values(const ConfigValues& config_values) {
+  std::unique_ptr<ConnectionContext> ctx(new ConnectionContext());
 
+  // what type of queue transport do we have?
   ctx->set_queue_transport(config_values.queue_transport);
+
+  // bring in transport-specific configs
+  if (config_values.queue_transport == "kafka") {
+    ctx->set_brokers(config_values.kafka_config.brokers);
+  }
+
+  // bring in queue configs
   ConnectionContext::EnableMap enabled;
   enabled.ipv4 = config_values.ipv4.should_open();
   enabled.domain = config_values.domain.should_open();

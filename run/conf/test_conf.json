@@ -1,5 +1,8 @@
 {
   "queue_transport": "kafka",
+  "kafka_config": {
+    "brokers": "127.0.0.1:9092"
+  },
   "queues": {
     "ipv4": {
       "db_path": "/tmp/zdb/ipv4",

@@ -242,10 +242,11 @@ class ConnectionContext : public Context {
     bool sct = false;
     bool processed_cert = false;
   };
-
-  ConnectionContext(const std::string& brokers);
+  ConnectionContext() = default;
 
   void connect_enabled(const EnableMap& enabled);
+
+  void set_brokers(const std::string& brokers) { m_brokers = brokers; }
 
   void set_queue_transport(const std::string& queue_transport) { m_queue_transport = queue_transport; }
   const std::string& queue_transport() { return m_queue_transport; }
@@ -309,9 +310,7 @@ std::unique_ptr<DBContext> create_db_context_from_config_values(
 std::unique_ptr<LockContext> create_lock_context_from_config_values(
     const ConfigValues& config_values);
 
-std::unique_ptr<ConnectionContext> create_connection_context_from_config_values(
-    const std::string& brokers,
-    const ConfigValues& config_values);
+std::unique_ptr<ConnectionContext> create_connection_context_from_config_values(const ConfigValues& config_values);
 
 }  // namespace zdb
 

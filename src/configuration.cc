@@ -32,6 +32,8 @@ const char* DB_PATH_KEY = "db_path";
 const char* WORKER_THREADS_KEY = "threads";
 const char* BLOCK_CACHE_SIZE_KEY = "block_cache_size";
 const char* ENABLED_KEY = "enabled";
+const char* KAFKA_KEY = "queues";
+const char* KAFKA_BROKERS_KEY = "queues";
 
 namespace {
 
@@ -152,6 +154,18 @@ bool ConfigValues::from_json(const Json::Value& config, ConfigValues* out) {
   // what transport are we using?
   if (!config_read_string(config, QUEUE_TRANSPORT_KEY, &out->queue_transport)) {
     return false;
+  }
+
+  // load kafka specific config values
+  if (out->queue_transport == "kafka") {
+    Json::Value kafka_config;
+    if (!config_read_object(config, KAFKA_KEY, &kafka_config)) {
+      return false;
+    }
+
+    if (!config_read_string(kafka_config, KAFKA_BROKERS_KEY, &out->kafka_config.brokers)) {
+      return false;
+    }
   }
 
   Json::Value queue_config;

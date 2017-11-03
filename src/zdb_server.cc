@@ -57,8 +57,6 @@ DEFINE_string(geolite_file, "geo.mmdb", "geolite file");
 DEFINE_string(geo_file, "geo.mmdb", "full geo file");
 DEFINE_string(as_file, "", "AS initial data (optional)");
 
-DEFINE_string(kafka_brokers, "127.0.0.1:9092", "Kafka brokers CSV");
-
 DEFINE_uint64(admin_port, 8080, "admin server port");
 DEFINE_uint64(query_port, 9090, "query server port");
 
@@ -161,8 +159,7 @@ int main(int argc, char* argv[]) {
   }
 
   std::unique_ptr<ConnectionContext> connection_ctx =
-      create_connection_context_from_config_values(FLAGS_kafka_brokers,
-                                              config_values);
+      create_connection_context_from_config_values(config_values);
 
   if (!connection_ctx) {
     log_fatal("server", "unable to create queue connections for %s", connection_ctx->queue_transport().c_str());
