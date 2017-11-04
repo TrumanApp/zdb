@@ -32,8 +32,8 @@ const char* DB_PATH_KEY = "db_path";
 const char* WORKER_THREADS_KEY = "threads";
 const char* BLOCK_CACHE_SIZE_KEY = "block_cache_size";
 const char* ENABLED_KEY = "enabled";
-const char* KAFKA_KEY = "queues";
-const char* KAFKA_BROKERS_KEY = "queues";
+const char* KAFKA_KEY = "kafka_config";
+const char* KAFKA_BROKERS_KEY = "brokers";
 
 namespace {
 
