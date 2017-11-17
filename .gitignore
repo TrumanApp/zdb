@@ -24,3 +24,5 @@ zsearch_definitions/*
 *.idea
 CMakeLists.txt
 cmake-build-debug/
+node_modules
+tmp

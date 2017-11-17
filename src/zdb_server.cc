@@ -162,7 +162,7 @@ int main(int argc, char* argv[]) {
       create_connection_context_from_config_values(config_values);
 
   if (!connection_ctx) {
-    log_fatal("server", "unable to create queue connections for %s", connection_ctx->queue_transport().c_str());
+    log_fatal("server", "unable to create queue connections for %s", connection_ctx->transport().c_str());
   }
 
   DeltaContext delta_ctx(connection_ctx.get());

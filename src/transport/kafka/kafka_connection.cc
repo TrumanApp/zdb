@@ -50,7 +50,7 @@ void KafkaConnection::delete_conf_objects() {
   }
 }
 
-bool KafkaConnection::connect(const std::string& brokers,
+bool KafkaConnection::connect(const Json::Value& kafka_config,
                               const std::string& topic,
                               const std::string& client_id) {
   if (m_connected) {
@@ -58,8 +58,11 @@ bool KafkaConnection::connect(const std::string& brokers,
   }
   std::string err_string;
   m_topic_name = topic;
+  m_brokers = kafka_config.get("brokers", "").asString();
+
   m_conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
   m_tconf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
+
   if (!m_conf || !m_tconf) {
     return false;
   }
@@ -77,9 +80,9 @@ bool KafkaConnection::connect(const std::string& brokers,
               err_string.c_str());
     return false;
   }
-  if (m_conf->set("metadata.broker.list", brokers, err_string) !=
+  if (m_conf->set("metadata.broker.list", m_brokers, err_string) !=
       RdKafka::Conf::CONF_OK) {
-    log_error("kafka", "Brokers: %s, %s\n", brokers.c_str(),
+    log_error("kafka", "Brokers: %s, %s\n", m_brokers.c_str(),
               err_string.c_str());
     return false;
   }
@@ -117,7 +120,7 @@ bool KafkaConnection::connect(const std::string& brokers,
               err_string.c_str());
     return false;
   }
-  m_connected = connect_impl(brokers, topic, client_id);
+  m_connected = connect_impl(m_brokers, topic, client_id);
   return m_connected;
 }
 
@@ -231,7 +234,7 @@ bool KafkaConsumerConnection::connect_impl(const std::string& brokers,
   log_info("kafka", "consumer %s created", m_consumer->name().c_str());
   delete_conf_objects();
   return true;
-}
+};
 
 // ============================================================================
 // Class: KafkaProducerConnection

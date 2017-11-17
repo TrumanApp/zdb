@@ -73,13 +73,8 @@ struct ConfigValues {
     bool should_open() const { return enabled && worker_threads > 0; }
   };
 
-  struct KafkaConfig {
-    std::string brokers;
-  };
-
-  std::string queue_transport;
-
-  KafkaConfig kafka_config;
+  std::string transport;
+  Json::Value transport_config;
 
   BasicDatabase ipv4;
   BasicDatabase domain;

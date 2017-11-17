@@ -246,10 +246,10 @@ class ConnectionContext : public Context {
 
   void connect_enabled(const EnableMap& enabled);
 
-  void set_brokers(const std::string& brokers) { m_brokers = brokers; }
+  void set_transport(const std::string& transport) { m_transport = transport; }
+  const std::string& transport() { return m_transport; }
 
-  void set_queue_transport(const std::string& queue_transport) { m_queue_transport = queue_transport; }
-  const std::string& queue_transport() { return m_queue_transport; }
+  void set_transport_config(const Json::Value& transport_config) { m_transport_config = transport_config; }
 
   ConsumerConnection* ipv4() { return m_ipv4.get(); }
   ConsumerConnection* domain() { return m_domain.get(); }
@@ -282,8 +282,8 @@ class ConnectionContext : public Context {
   std::unique_ptr<ProducerConnection> m_certificate_deltas;
   std::unique_ptr<ProducerConnection> m_certificates_to_process;
 
-  std::string m_brokers;
-  std::string m_queue_transport;
+  std::string m_transport;
+  Json::Value m_transport_config;
 
   DISALLOW_COPY_ASSIGN(ConnectionContext);
 };

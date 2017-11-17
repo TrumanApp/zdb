@@ -5,6 +5,9 @@ Backend database for Internet-wide scans.
 
 ### Prereqs
 
+[Build Nanomsg](https://github.com/nanomsg/nanomsg).
+
+
 On OS X:
 
 ```

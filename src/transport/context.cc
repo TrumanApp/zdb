@@ -32,6 +32,7 @@
 #include "topic_delta_handler.h"
 #include "connection.h"
 #include "kafka/kafka_connection.h"
+#include "nanomsg/nanomsg_connection.h"
 
 namespace zdb {
 
@@ -50,57 +51,64 @@ rocksdb::DB* open_rocks(const rocksdb::Options& opt, const std::string& path) {
 }
 
 std::unique_ptr<ConsumerConnection> connect_inbound(
-    const std::string& queue_transport,
-    const std::string& brokers,
+    const std::string& transport,
+    const Json::Value& transport_config,
     const std::string& topic) {
   std::string client_id = topic + "_consumer";
   std::unique_ptr<ConsumerConnection> consumer;
 
-  if (queue_transport == "kafka") {
+  if (transport == "kafka") {
     consumer.reset(new KafkaConsumerConnection);
-  } else {
-    log_fatal("context", "unable to create queue transport: %s", queue_transport.c_str());
+  }
+  else if (transport == "nanomsg") {
+    consumer.reset(new NanomsgConsumerConnection);
+  }
+  else {
+    log_fatal("context", "unable to create transport: %s", transport.c_str());
   }
 
-  consumer->connect(brokers, topic, client_id);
+  consumer->connect(transport_config, topic, client_id);
   return consumer;
 }
 
 std::unique_ptr<ProducerConnection> connect_outbound(
-    const std::string& queue_transport,
-    const std::string& brokers,
+    const std::string& transport,
+    const Json::Value& transport_config,
     const std::string& topic) {
   std::string client_id = topic + "_outbound";
   std::unique_ptr<ProducerConnection> producer;
 
-  if (queue_transport == "kafka") {
+  if (transport == "kafka") {
     producer.reset(new KafkaProducerConnection);
+  }
+  else if (transport == "nanomsg") {
+    producer.reset(new NanomsgProducerConnection);
   } else {
-    log_fatal("context", "unable to create queue transport: %s", queue_transport.c_str());
+    log_fatal("context", "unable to create transport: %s", transport.c_str());
   }
 
-  producer->connect(brokers, topic, client_id);
+  producer->connect(transport_config, topic, client_id);
   return producer;
 }
 
 std::unique_ptr<ConsumerConnection> connect_inbound_if(
-    const std::string& queue_transport,
+    const std::string& transport,
     bool enabled,
-    const std::string& brokers,
+    const Json::Value& transport_config,
     const std::string& topic) {
   if (enabled) {
-    return connect_inbound(queue_transport, brokers, topic);
+    return connect_inbound(transport, transport_config, topic);
   }
   return nullptr;
 }
 
 std::unique_ptr<ProducerConnection> connect_outbound_if(
-    const std::string& queue_transport,
+    const std::string& transport,
     bool enabled,
-    const std::string& brokers,
+    const Json::Value& transport_config,
     const std::string& topic) {
   if (enabled) {
-    return connect_outbound(queue_transport, brokers, topic);
+    return connect_outbound(transport, transport_config, topic);
   }
   return nullptr;
 }
@@ -340,26 +348,26 @@ AnonymousStore<HashKey> StoreContext::make_certificate_store(size_t tid) {
 }
 
 void ConnectionContext::connect_enabled(const EnableMap& enabled) {
-  m_ipv4 = connect_inbound_if(queue_transport(), enabled.ipv4, m_brokers, kIPv4InboundName);
-  m_domain = connect_inbound_if(queue_transport(), enabled.domain, m_brokers, kDomainInboundName);
-  m_certificate = connect_inbound_if(queue_transport(), enabled.certificate, m_brokers,
+  m_ipv4 = connect_inbound_if(transport(), enabled.ipv4, m_transport_config, kIPv4InboundName);
+  m_domain = connect_inbound_if(transport(), enabled.domain, m_transport_config, kDomainInboundName);
+  m_certificate = connect_inbound_if(transport(), enabled.certificate, m_transport_config,
                                      kCertificateInboundName);
-  m_external_cert = connect_inbound_if(queue_transport(), enabled.external_cert, m_brokers,
+  m_external_cert = connect_inbound_if(transport(), enabled.external_cert, m_transport_config,
                                        kExternalCertificateInboundName);
-  m_sct = connect_inbound_if(queue_transport(), enabled.sct, m_brokers, kSCTInboundName);
-  m_processed_cert = connect_inbound_if(queue_transport(), enabled.processed_cert, m_brokers,
+  m_sct = connect_inbound_if(transport(), enabled.sct, m_transport_config, kSCTInboundName);
+  m_processed_cert = connect_inbound_if(transport(), enabled.processed_cert, m_transport_config,
                                         kProcessedCertificateInboundName);
 
-  m_ipv4_deltas = connect_outbound_if(queue_transport(), !!m_ipv4, m_brokers, kIPv4OutboundName);
+  m_ipv4_deltas = connect_outbound_if(transport(), !!m_ipv4, m_transport_config, kIPv4OutboundName);
   m_domain_deltas =
-      connect_outbound_if(queue_transport(), !!m_domain, m_brokers, kDomainOutboundName);
+      connect_outbound_if(transport(), !!m_domain, m_transport_config, kDomainOutboundName);
   m_certificates_to_process =
-      connect_outbound_if(queue_transport(), !!m_certificate || !!m_external_cert, m_brokers,
+      connect_outbound_if(transport(), !!m_certificate || !!m_external_cert, m_transport_config,
                           kCertificateOutboundName);
   m_certificate_deltas = connect_outbound_if(
-      queue_transport(),
+      transport(),
       !!m_certificate || !!m_external_cert || !!m_sct || !!m_processed_cert,
-      m_brokers, kProcessedCertificateOutboundName);
+      m_transport_config, kProcessedCertificateOutboundName);
 }
 
 DeltaContext::DeltaContext(ConnectionContext* connection_ctx) : m_connection_ctx(connection_ctx) {}
@@ -455,13 +463,9 @@ std::unique_ptr<LockContext> create_lock_context_from_config_values(
 std::unique_ptr<ConnectionContext> create_connection_context_from_config_values(const ConfigValues& config_values) {
   std::unique_ptr<ConnectionContext> ctx(new ConnectionContext());
 
-  // what type of queue transport do we have?
-  ctx->set_queue_transport(config_values.queue_transport);
-
-  // bring in transport-specific configs
-  if (config_values.queue_transport == "kafka") {
-    ctx->set_brokers(config_values.kafka_config.brokers);
-  }
+  // what type of transport do we have?
+  ctx->set_transport(config_values.transport);
+  ctx->set_transport_config(config_values.transport_config);
 
   // bring in queue configs
   ConnectionContext::EnableMap enabled;

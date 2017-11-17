@@ -26,14 +26,14 @@
 namespace zdb {
 
 const char* QUEUES_KEY = "queues";
-const char* QUEUE_TRANSPORT_KEY = "queue_transport";
 const char* DELTA_QUEUE_KEY = "delta_redis_queue";
 const char* DB_PATH_KEY = "db_path";
 const char* WORKER_THREADS_KEY = "threads";
 const char* BLOCK_CACHE_SIZE_KEY = "block_cache_size";
 const char* ENABLED_KEY = "enabled";
-const char* KAFKA_KEY = "kafka_config";
-const char* KAFKA_BROKERS_KEY = "brokers";
+
+const char* TRANSPORT_KEY = "transport";
+const char* TRANSPORT_CONFIG_KEY = "transport_config";
 
 namespace {
 
@@ -152,20 +152,12 @@ bool load_json_from_file(const std::string& filepath, Json::Value* out) {
 bool ConfigValues::from_json(const Json::Value& config, ConfigValues* out) {
 
   // what transport are we using?
-  if (!config_read_string(config, QUEUE_TRANSPORT_KEY, &out->queue_transport)) {
+  if (!config_read_string(config, TRANSPORT_KEY, &out->transport)) {
     return false;
   }
 
-  // load kafka specific config values
-  if (out->queue_transport == "kafka") {
-    Json::Value kafka_config;
-    if (!config_read_object(config, KAFKA_KEY, &kafka_config)) {
-      return false;
-    }
-
-    if (!config_read_string(kafka_config, KAFKA_BROKERS_KEY, &out->kafka_config.brokers)) {
-      return false;
-    }
+  if (!config_read_object(config, TRANSPORT_CONFIG_KEY, &out->transport_config)) {
+    return false;
   }
 
   Json::Value queue_config;

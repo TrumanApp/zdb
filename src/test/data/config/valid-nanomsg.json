@@ -1,7 +1,9 @@
 {
-    "transport": "kafka",
+    "transport": "nanomsg",
     "transport_config": {
-        "brokers": "127.0.0.1:9092"
+        "consumer_port": "127.0.0.1:4055",
+        "producer_port": "127.0.0.1:4056",
+        "queue_message_max": 100
     },
     "queues": {
         "ipv4": {

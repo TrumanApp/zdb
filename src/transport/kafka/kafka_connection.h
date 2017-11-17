@@ -28,13 +28,18 @@ class KafkaConnection : virtual public Connection {
   KafkaConnection();
   ~KafkaConnection();
 
-  bool connect(const std::string& brokers,
+  bool connect(const Json::Value& kafka_config,
                const std::string& topic,
                const std::string& client_id) override;
+
+  virtual bool connect_impl(const std::string& brokers,
+                            const std::string& topic,
+                            const std::string& client_id) = 0;
 
  protected:
   RdKafka::Conf* m_conf = nullptr;
   RdKafka::Conf* m_tconf = nullptr;
+  std::string m_brokers;
   void delete_conf_objects();
 };
 
@@ -50,9 +55,9 @@ class KafkaConsumerConnection : virtual public KafkaConnection, virtual public C
   Message consume() override;
 
  private:
-  virtual bool connect_impl(const std::string& brokers,
-                            const std::string& topic,
-                            const std::string& client_id) override;
+  bool connect_impl(const std::string& brokers,
+                    const std::string& topic,
+                    const std::string& client_id) override;
 
   RdKafka::KafkaConsumer* m_consumer = nullptr;
   RdKafka::Topic* m_topic = nullptr;
@@ -73,9 +78,9 @@ class KafkaProducerConnection : virtual public KafkaConnection, virtual public P
   Message produce_blocking(const std::string& msg, size_t max_attempts) override;
 
  private:
-  virtual bool connect_impl(const std::string& brokers,
-                            const std::string& topic,
-                            const std::string& client_id) override;
+  bool connect_impl(const std::string& brokers,
+                    const std::string& topic,
+                    const std::string& client_id) override;
 
   RdKafka::Conf* m_conf = nullptr;
   RdKafka::Conf* m_tconf = nullptr;

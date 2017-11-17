@@ -16,6 +16,7 @@
 #define ZDB_CONNECTION_H
 
 #include <string>
+#include <json/json.h>
 
 namespace zdb {
 
@@ -49,7 +50,7 @@ class Connection {
  public:
   Connection() = default;
 
-  virtual bool connect(const std::string& brokers,
+  virtual bool connect(const Json::Value& transport_config,
                const std::string& topic,
                const std::string& client_id) = 0;
 
@@ -62,9 +63,6 @@ class Connection {
  protected:
   bool m_connected = false;
   std::string m_topic_name;
-  virtual bool connect_impl(const std::string& brokers,
-                            const std::string& topic,
-                            const std::string& client_id) = 0;
 
  private:
   Connection(const Connection&) = delete;
