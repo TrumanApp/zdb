@@ -36,7 +36,9 @@ NanomsgEnvelope* parse_msg(char* msgTxt) {
   // unpack header
   // e.g.: {"topic":"ipv4", "status": "OK", "error": ""}
   std::string headerTxt = txt.substr(0, i+1);
-  Json::Value header(headerTxt);
+  Json::Value header;
+  Json::Reader reader;
+  reader.parse(headerTxt, header);
 
   auto env = new NanomsgEnvelope();
   env->topic = header.get("topic", "").asString();
@@ -82,6 +84,7 @@ std::unordered_map<std::string, NanomsgInbound*> NanomsgInbound::connections;
 
 void NanomsgInbound::subscribe(const std::string& port, const std::string& topic, const std::string& address) {
   // does a connection for this port exist?
+  log_trace("NanomsgInbound", "subscribe called for %s %s -> %s", port.c_str(), topic.c_str(), address.c_str());
   auto conn = connections[port];
   if (!conn) {
     conn = new NanomsgInbound(port);
@@ -103,9 +106,6 @@ void NanomsgInbound::unsubscribe(const std::string& port, const std::string& top
 // instance
 NanomsgInbound::NanomsgInbound(const std::string& port): m_port(port) {
   init_socket();
-  if (inbound_socket) {
-    receiver_thread = std::thread(&NanomsgInbound::listen_and_publish, this);
-  }
 }
 
 NanomsgInbound::~NanomsgInbound() {
@@ -120,6 +120,10 @@ void NanomsgInbound::subscribe(const std::string& topic, const std::string& addr
     nn_connect(socket, address.c_str());
     subscriptions[topic] = socket;
   }
+  if (inbound_socket && !m_listening) {
+    m_listening = true;
+    receiver_thread = std::thread(&NanomsgInbound::listen_and_publish, this);
+  }
 }
 
 void NanomsgInbound::unsubscribe(const std::string& topic) {
@@ -130,6 +134,8 @@ void NanomsgInbound::unsubscribe(const std::string& topic) {
 
 void NanomsgInbound::init_socket() {
   inbound_socket = nn_socket(AF_SP, NN_PULL);
+  int* timeout = new int(1000);
+  nn_setsockopt(inbound_socket, NN_SOL_SOCKET, NN_RCVTIMEO, timeout, sizeof(*timeout));
 
   // is the socket valid?
   if (inbound_socket < 0) {
@@ -142,21 +148,24 @@ void NanomsgInbound::init_socket() {
 }
 
 void NanomsgInbound::listen_and_publish() {
+  log_info("NanomsgInbound", "listen_and_publish(), count: %i", count_subscriptions());
   while(count_subscriptions() > 0) {
     // get socket message
     // translate response or error to Message and return it
     char *buf = NULL;
     int recv_bytes = nn_recv (inbound_socket, &buf, NN_MSG, 0);
+    log_info("NanomsgInbound", "received:\n%s", buf);
 
     // warn on empty message
     if (recv_bytes < 0) {
-      log_warn("NanomsgInbound", "connection received empty message, reason: %s", nn_strerror(nn_errno()));
+      log_info("NanomsgInbound", "connection received empty message, reason: %s", nn_strerror(nn_errno()));
       continue;
     };
 
     NanomsgEnvelope* env = parse_msg(buf);
     nn_freemsg(buf);
     if (!env) {
+      log_warn("NanomsgInbound", "Couldn't parse message.");
       continue;
     }
 
@@ -164,6 +173,7 @@ void NanomsgInbound::listen_and_publish() {
       // if receiver exists, deliver the message
       auto socket = subscriptions[env->topic];
       if (socket) {
+        log_trace("NanomsgInbound", "forwarding message to topic: %s", env->topic.c_str());
         int sent_bytes = nn_send(socket, buf, recv_bytes, 0);
         if (sent_bytes < 0) {
           log_warn("NanomsgInbound", "connection forwarded empty message, reason: %s", nn_strerror(nn_errno()));
@@ -176,6 +186,7 @@ void NanomsgInbound::listen_and_publish() {
       sleep(1);
     }
   }
+  m_listening = false;
 }
 
 // ============================================================================
@@ -233,7 +244,7 @@ int NanomsgOutbound::publish(const std::string& msgTxt) {
 
 NanomsgConsumerConnection::NanomsgConsumerConnection(): ConsumerConnection() {}
 NanomsgConsumerConnection::~NanomsgConsumerConnection() {
-  NanomsgInbound::unsubscribe(m_port, m_topic);
+  NanomsgInbound::unsubscribe(m_port, m_topic_name);
 }
 
 bool NanomsgConsumerConnection::connect(const Json::Value& nanomsg_config,
@@ -243,11 +254,10 @@ bool NanomsgConsumerConnection::connect(const Json::Value& nanomsg_config,
     return true;
   }
   m_port = nanomsg_config.get("consumer_port", "127.0.0.1:4055").asString();
-  m_topic = "set_" + topic;
   m_topic_name = topic;
 
   // set up inbound_socket
-  std::string address = "inproc://" + m_topic;
+  std::string address = "inproc://" + m_topic_name;
   inbound_socket = nn_socket(AF_SP, NN_PULL);
   int* timeout = new int(1000);
   nn_setsockopt(inbound_socket, NN_SOL_SOCKET, NN_RCVTIMEO, timeout, sizeof(*timeout));
@@ -256,7 +266,7 @@ bool NanomsgConsumerConnection::connect(const Json::Value& nanomsg_config,
   };
 
   // subscribe our topic to inbound_socket
-  NanomsgInbound::subscribe(m_port, m_topic, address);
+  NanomsgInbound::subscribe(m_port, m_topic_name, address);
 
   m_connected = true;
   return true;
@@ -308,7 +318,6 @@ bool NanomsgProducerConnection::connect(const Json::Value& nanomsg_config,
     return true;
   }
   m_port = nanomsg_config.get("producer_port", "tcp://127.0.0.1:4056").asString();
-  m_topic = "delta_" + topic;
   m_topic_name = topic;
 
   NanomsgOutbound::bind(m_port);
@@ -321,7 +330,7 @@ Message NanomsgProducerConnection::produce(const std::string& msg) {
 
   // put the message in an envelope
   NanomsgEnvelope env;
-  env.topic = m_topic;
+  env.topic = m_topic_name;
   env.status = "OK";
   env.body = msg;
 

@@ -67,6 +67,7 @@ class NanomsgInbound {
     // started on constructor, joined on destructor
     std::thread receiver_thread;
     std::string m_port;
+    bool m_listening = false;
     int inbound_socket;
     std::unordered_map<std::string, int> subscriptions;
 };
@@ -109,7 +110,6 @@ class NanomsgConsumerConnection : virtual public ConsumerConnection {
 
  private:
   std::string m_port;
-  std::string m_topic;
   int inbound_socket;
 };
 
@@ -131,7 +131,6 @@ class NanomsgProducerConnection : virtual public ProducerConnection {
 
  private:
   std::string m_port;
-  std::string m_topic;
 };
 
 }  // namespace zdb

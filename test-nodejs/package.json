@@ -1,0 +1,17 @@
+{
+  "name": "zdb-test-nodejs",
+  "version": "1.0.0",
+  "description": "Integration test nanomsg connections with node.js.",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "author": "q@bitmage.net",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "chai": "^4.1.2",
+    "nanomsg": "^3.3.0",
+    "protobufjs": "~6.8.0",
+    "torch": "^0.2.7"
+  }
+}

@@ -1,2 +1,2 @@
 {"topic":"ipv4", "status": "OK"}
-{"ip":"192.168.1.1","vulnerable":"very bad"}
+{"ip":419160124,"port":80,"protocol":80,"atom":{"tags":["bad","wrong","badong"], "metadata":[{"key":"awesomeness","value":"epic"},{"key":"villians","value":"true"}],"data":"<div>Kung pow! Enter the fist.</div>"}}

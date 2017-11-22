@@ -187,12 +187,12 @@ void zdb::process_inbound(ConsumerConnection* recv_topic,
   while (server_state != STATE_SHUTDOWN) {
     Message recv_result = recv_topic->consume();
     if (recv_result.status == Message::Status::OK) {
-      // log_info("incoming", "handling incoming");
+      log_info("incoming", "handling incoming");
       InboundResult res = handler->handle(recv_result.data);
       if (res.success) {
         if (!res.serialized.empty()) {
           // we have a delta we need to place in delta queue
-          // log_trace("inbound", "dealing with delta");
+          log_trace("inbound", "dealing with delta");
           Message::Status status = Message::Status::WOULD_BLOCK;
           for (size_t attempts = 0; status == Message::Status::WOULD_BLOCK;
                ++attempts) {
@@ -211,13 +211,14 @@ void zdb::process_inbound(ConsumerConnection* recv_topic,
             }
           }
         } else {
-          // log_trace("inbound", "no change");
+           log_trace("inbound", "no change");
         }
       } else {
         log_fatal("inbound", "error handling incoming record");
       }
       failcount = 0;
     } else if (recv_result.status == Message::Status::WOULD_BLOCK) {
+      //log_info("incoming", "no message received for %s", recv_topic->topic_name().c_str());
       failcount++;
       if (failcount >= 100) {
         log_info("inbound", "empty queue %s, %s, sleeping",
